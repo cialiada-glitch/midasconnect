@@ -110,6 +110,9 @@ select:disabled,input:disabled{opacity:.5}
     <button id="gps-btn" onclick="captureGPS()">Obtener GPS</button>
   </div>
 
+  <!-- LOG PANEL -->
+  <div id="logpanel" style="display:none;background:#0a0f14;color:#00e5a0;font-family:monospace;font-size:11px;padding:12px;border-radius:12px;margin-bottom:12px;max-height:200px;overflow-y:auto;word-break:break-all;white-space:pre-wrap;border:1px solid #00e5a0"></div>
+
   <div class="tabs">
     <button class="tab-btn active" id="tab-btn-visita" onclick="switchTab('visita')">📋 Registrar Visita</button>
     <button class="tab-btn" id="tab-btn-cliente" onclick="switchTab('cliente')">➕ Nuevo Cliente</button>
@@ -379,7 +382,9 @@ function submitVisit() {
     if (!err && d && d.success) {
       toast("✅ Visita registrada en Sheets");
       // Subir foto aparte
-      if (foto) subirFoto(id, foto);
+      log("VISITA OK: llamando subirFoto con id=" + id + " foto=" + (foto ? "SI" : "NO"));
+    if (foto) subirFoto(id, foto);
+    else log("FOTO: no hay foto para subir");
     } else {
       toast("⚠️ " + (d && d.error ? d.error : "Error de conexión"), "err");
     }
@@ -417,6 +422,8 @@ function resetParcial() {
 
 // ── Subir foto: comprimir y enviar base64 como texto plano
 function subirFoto(visitId, b64) {
+  log("FOTO: iniciando subida para visita " + visitId);
+  log("FOTO: tamaño original b64 = " + Math.round(b64.length/1024) + "KB");
   try {
     var img = new Image();
     img.onload = function() {
@@ -427,23 +434,27 @@ function subirFoto(visitId, b64) {
       canvas.height = Math.round(img.height * ratio);
       canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
       var small = canvas.toDataURL("image/jpeg", 0.5);
+      log("FOTO: comprimida a " + Math.round(small.length/1024) + "KB (" + canvas.width + "x" + canvas.height + ")");
       enviarFotoPost(visitId, small);
     };
+    img.onerror = function() { log("FOTO ERROR: no se pudo cargar imagen"); };
     img.src = b64;
-  } catch(e) {}
+  } catch(e) { log("FOTO ERROR en subirFoto: " + e.message); }
 }
 
 function enviarFotoPost(visitId, b64) {
   try {
-    // Enviar como JSON text/plain — Apps Script lee e.postData.contents
     var body = JSON.stringify({ action: "subirFoto", id: String(visitId), foto: b64 });
+    log("FOTO: enviando POST, body size=" + Math.round(body.length/1024) + "KB");
     fetch(URL, {
       method: "POST",
       mode: "no-cors",
       headers: { "Content-Type": "text/plain" },
       body: body
-    });
-  } catch(e) {}
+    })
+    .then(function() { log("FOTO: fetch completado (no-cors no devuelve respuesta)"); })
+    .catch(function(err) { log("FOTO ERROR fetch: " + err.message); });
+  } catch(e) { log("FOTO ERROR en enviarFotoPost: " + e.message); }
 }
 
 // ── Guardar nuevo cliente
@@ -534,6 +545,16 @@ function exportCSV() {
   var a = document.createElement("a");
   a.href=window.URL.createObjectURL(blob); a.download="visitas_"+new Date().toISOString().slice(0,10)+".csv"; a.click();
   toast("📊 CSV descargado");
+}
+
+// ── Log
+function log(msg) {
+  var p = document.getElementById("logpanel");
+  p.style.display = "block";
+  var t = new Date().toLocaleTimeString("es-CO");
+  p.textContent += "[" + t + "] " + msg + "
+";
+  p.scrollTop = p.scrollHeight;
 }
 
 // ── Toast
