@@ -465,24 +465,19 @@ function submitVisit() {
 
   if (!ejecutivo || !cliente || !resultado) { showToast("Completa todos los campos", true); return; }
 
-  // GPS OBLIGATORIO
   if (!gpsData) {
-    showToast("⚠️ El GPS es obligatorio para registrar la visita", true);
-    document.getElementById("gps-banner").style.animation = "shake 0.4s";
-    setTimeout(() => { document.getElementById("gps-banner").style.animation = ""; }, 400);
+    showToast("⚠️ GPS obligatorio para registrar la visita", true);
     return;
   }
 
-  const visit = {
-    id: Date.now(),
-    fecha: new Date().toLocaleString("es-CO"),
-    ejecutivo, cliente, resultado,
-    lat: gpsData.lat, lon: gpsData.lon, precision: gpsData.acc,
-    mapsUrl: "https://maps.google.com/?q=" + gpsData.lat + "," + gpsData.lon,
-    foto: photoBase64 ? "✓" : "—",
-    fotoData: photoBase64,
-  };
+  const id      = Date.now();
+  const fecha   = new Date().toLocaleString("es-CO");
+  const mapsUrl = "https://maps.google.com/?q=" + gpsData.lat + "," + gpsData.lon;
 
+  // Guardar localmente primero
+  const visit = { id, fecha, ejecutivo, cliente, resultado,
+    lat: gpsData.lat, lon: gpsData.lon, precision: gpsData.acc,
+    mapsUrl, foto: photoBase64 ? "✓" : "—", fotoData: photoBase64 };
   visits.unshift(visit);
   localStorage.setItem("mc_visits", JSON.stringify(visits));
   renderVisits();
@@ -490,44 +485,62 @@ function submitVisit() {
   const btn = document.querySelector("#tab-visita .submit-btn");
   btn.disabled = true; btn.textContent = "Enviando...";
 
-  const payload = {
-    id: visit.id, fecha: visit.fecha, ejecutivo, cliente, resultado,
-    lat: visit.lat, lon: visit.lon, precision: visit.precision,
-    mapsUrl: visit.mapsUrl, fotoBase64: photoBase64 || null,
-  };
+  // Construir URL con parámetros simples
+  const base = SHEETS_URL;
+  const params = new URLSearchParams({
+    action:    "nuevaVisita",
+    id:        String(id),
+    fecha:     fecha,
+    ejecutivo: ejecutivo,
+    cliente:   cliente,
+    resultado: resultado,
+    lat:       String(gpsData.lat),
+    lon:       String(gpsData.lon),
+    precision: String(gpsData.acc),
+    mapsUrl:   mapsUrl
+  });
 
-  // Enviar via JSONP igual que nuevo cliente (funciona sin CORS)
-  // La foto va separada si existe, para no superar límite de URL
-  const urlParams = "?action=nuevaVisita" +
-    "&id="        + encodeURIComponent(payload.id) +
-    "&fecha="     + encodeURIComponent(payload.fecha) +
-    "&ejecutivo=" + encodeURIComponent(payload.ejecutivo) +
-    "&cliente="   + encodeURIComponent(payload.cliente) +
-    "&resultado=" + encodeURIComponent(payload.resultado) +
-    "&lat="       + encodeURIComponent(payload.lat) +
-    "&lon="       + encodeURIComponent(payload.lon) +
-    "&precision=" + encodeURIComponent(payload.precision) +
-    "&mapsUrl="   + encodeURIComponent(payload.mapsUrl);
+  const fullUrl = base + "?" + params.toString();
 
-  jsonp(CATALOG_URL + urlParams, function(err, data) {
-    if (!err && data && data.success && payload.fotoBase64) {
-      // Enviar foto por separado via JSONP en chunks si es necesario
-      enviarFoto(payload.id, payload.fotoBase64);
+  // JSONP directo sin helper para mayor control
+  const cbName = "visita_cb_" + id;
+  const script = document.createElement("script");
+  script.src = fullUrl + "&callback=" + cbName;
+
+  window[cbName] = function(data) {
+    delete window[cbName];
+    if (document.body.contains(script)) document.body.removeChild(script);
+    if (data && data.success) {
+      showToast("✅ Visita registrada en Sheets");
+    } else {
+      showToast("⚠️ Error: " + (data && data.error ? data.error : "desconocido"), true);
     }
     resetForm();
-    showToast(err ? "✅ Visita guardada localmente" : "✅ Visita registrada en Sheets");
     btn.disabled = false;
     btn.innerHTML = "✓ &nbsp; Registrar Visita";
-  });
-}
+  };
 
-function enviarFoto(visitId, fotoBase64) {
-  // La foto se sube en un segundo llamado para no exceder URL limit
-  // Solo tomamos los primeros 8000 chars (aprox) por limitación de GET
-  // Para fotos completas se requeriría un backend diferente
-  const fotoCorta = fotoBase64.substring(0, 8000);
-  const url = CATALOG_URL + "?action=subirFoto&id=" + visitId + "&foto=" + encodeURIComponent(fotoCorta);
-  jsonp(url, function() {});
+  script.onerror = function() {
+    delete window[cbName];
+    if (document.body.contains(script)) document.body.removeChild(script);
+    showToast("⚠️ Error de conexión", true);
+    resetForm();
+    btn.disabled = false;
+    btn.innerHTML = "✓ &nbsp; Registrar Visita";
+  };
+
+  // Timeout por si el script no responde
+  setTimeout(function() {
+    if (window[cbName]) {
+      delete window[cbName];
+      if (document.body.contains(script)) document.body.removeChild(script);
+      showToast("⚠️ Sin respuesta del servidor", true);
+      btn.disabled = false;
+      btn.innerHTML = "✓ &nbsp; Registrar Visita";
+    }
+  }, 10000);
+
+  document.body.appendChild(script);
 }
 
 // ── Guardar nuevo cliente
