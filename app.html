@@ -212,7 +212,7 @@ select:disabled,input:disabled{opacity:.5}
 <div id="toast"></div>
 
 <script>
-const URL = "https://script.google.com/macros/s/AKfycbzKKEY60FtX9NkpsMC4Ve9k_IA51NiUeWWW1YQ8RHNXG11SIH2Ba3pk5z-26cMm6RBg/exec";
+var SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzKKEY60FtX9NkpsMC4Ve9k_IA51NiUeWWW1YQ8RHNXG11SIH2Ba3pk5z-26cMm6RBg/exec";
 
 // Estado global
 var gps = null;
@@ -261,7 +261,7 @@ function jsonp(url, cb) {
 function cargarCatalogo() {
   var st = document.getElementById("ejstatus");
   st.style.display = "block"; st.textContent = "⏳ Cargando...";
-  jsonp(URL + "?action=catalogo", function(err, d) {
+  jsonp(SCRIPT_URL + "?action=catalogo", function(err, d) {
     if (err || d.error) { st.textContent = "⚠️ Error cargando ejecutivos"; return; }
     Object.keys(d).forEach(function(k) { d[k] = d[k].filter(function(v,i,a){return a.indexOf(v)===i;}); });
     catalogo = d;
@@ -276,7 +276,7 @@ function cargarCatalogo() {
 
 // ── Cargar resultados
 function cargarResultados() {
-  jsonp(URL + "?action=resultados", function(err, d) {
+  jsonp(SCRIPT_URL + "?action=resultados", function(err, d) {
     var lista = (!err && Array.isArray(d)) ? d : ["VENTA","NO HUBO CONTACTO","COBRO","PRIMER CONTACTO","SEGUNDO CONTACTO","TERCER CONTACTO"];
     resultados = lista;
     var s = document.getElementById("f-res");
@@ -376,7 +376,7 @@ function submitVisit() {
     precision:String(gps.acc), mapsUrl:mapsUrl
   });
 
-  jsonp(URL + "?" + p.toString(), function(err, d) {
+  jsonp(SCRIPT_URL + "?" + p.toString(), function(err, d) {
     btn.disabled = false;
     btn.innerHTML = "✓ &nbsp; Registrar Visita";
     if (!err && d && d.success) {
@@ -446,7 +446,7 @@ function enviarFotoPost(visitId, b64) {
   try {
     var body = JSON.stringify({ action: "subirFoto", id: String(visitId), foto: b64 });
     log("FOTO: enviando POST, body size=" + Math.round(body.length/1024) + "KB");
-    fetch(URL, {
+    fetch(SCRIPT_URL, {
       method: "POST",
       mode: "no-cors",
       headers: { "Content-Type": "text/plain" },
@@ -492,7 +492,7 @@ function guardarCliente() {
     telefono:tel, cedula:ced, direccion:dir, ciudad:ciu, barrio:bar
   });
 
-  jsonp(URL + "?" + p.toString(), function(err, d) {
+  jsonp(SCRIPT_URL + "?" + p.toString(), function(err, d) {
     btn.disabled=false; btn.innerHTML="➕ &nbsp; Guardar Cliente";
     if (err)          { toast("Error de conexión","err"); return; }
     if (d.duplicate)  { setErr("err-nom","Ya existe en la base de datos"); return; }
