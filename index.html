@@ -254,7 +254,7 @@
       </div>
     </div>
 
-    <button class="submit-btn" onclick="submitVisit()">✓ &nbsp; Registrar Visita</button>
+    <button class="submit-btn" id="btn-registrar" onclick="submitVisit()">✓ &nbsp; Registrar Visita</button>
   </div>
 
   <!-- TAB: NUEVO CLIENTE -->
@@ -310,7 +310,7 @@
       </div>
     </div>
 
-    <button class="submit-btn" onclick="guardarNuevoCliente()">➕ &nbsp; Guardar Cliente</button>
+    <button class="submit-btn" id="btn-guardar-cliente" onclick="guardarNuevoCliente()">➕ &nbsp; Guardar Cliente</button>
   </div>
 
   <div class="section-label">Visitas registradas hoy</div>
@@ -481,7 +481,7 @@ function submitVisit() {
   localStorage.setItem("mc_visits", JSON.stringify(visits));
   renderVisits();
 
-  const btn = document.querySelector("#tab-visita .submit-btn");
+  const btn = document.getElementById("btn-registrar");
   btn.disabled = true; btn.textContent = "Enviando...";
 
   const params = new URLSearchParams({
@@ -589,7 +589,7 @@ function guardarNuevoCliente() {
     return;
   }
 
-  const btn = document.querySelector("#tab-cliente .submit-btn");
+  const btn = document.getElementById("btn-guardar-cliente");
   btn.disabled = true; btn.textContent = "Guardando...";
 
   // Enviar al Sheets via JSONP
