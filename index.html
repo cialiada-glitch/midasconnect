@@ -415,47 +415,37 @@ function resetParcial() {
   }
 }
 
-// ── Subir foto en chunks via JSONP
+// ── Subir foto via FormData POST (comprimida)
 function subirFoto(visitId, b64) {
   try {
-    // Comprimir: reducir calidad re-dibujando en canvas
     var img = new Image();
     img.onload = function() {
       var canvas = document.createElement("canvas");
-      var MAX = 800;
+      var MAX = 1024;
       var ratio = Math.min(MAX/img.width, MAX/img.height, 1);
       canvas.width  = Math.round(img.width  * ratio);
       canvas.height = Math.round(img.height * ratio);
       canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-      var small = canvas.toDataURL("image/jpeg", 0.5);
-      enviarFotoChunks(visitId, small);
+      var compressed = canvas.toDataURL("image/jpeg", 0.6);
+      enviarFormData(visitId, compressed);
     };
     img.src = b64;
   } catch(e) {}
 }
 
-function enviarFotoChunks(visitId, b64) {
-  // Enviar en chunks de 1500 chars para no exceder URL limit
-  var data   = b64.split(",")[1];
-  var size   = 1500;
-  var total  = Math.ceil(data.length / size);
-  var sent   = 0;
-
-  function sendChunk(idx) {
-    if (idx >= total) return;
-    var chunk = data.substring(idx * size, (idx + 1) * size);
-    var p = new URLSearchParams({
-      action: "fotoChunk",
-      id:     String(visitId),
-      idx:    String(idx),
-      total:  String(total),
-      chunk:  chunk
-    });
-    jsonp(URL + "?" + p.toString(), function(err, d) {
-      if (!err && d && d.next) sendChunk(idx + 1);
-    });
-  }
-  sendChunk(0);
+function enviarFormData(visitId, b64) {
+  try {
+    var parts = b64.split(",");
+    var bstr  = atob(parts[1]);
+    var arr   = new Uint8Array(bstr.length);
+    for (var i = 0; i < bstr.length; i++) arr[i] = bstr.charCodeAt(i);
+    var blob  = new Blob([arr], {type: "image/jpeg"});
+    var fd    = new FormData();
+    fd.append("action", "subirFoto");
+    fd.append("id", String(visitId));
+    fd.append("foto", blob, "visita_" + visitId + ".jpg");
+    fetch(URL, {method: "POST", mode: "no-cors", body: fd});
+  } catch(e) {}
 }
 
 // ── Guardar nuevo cliente
