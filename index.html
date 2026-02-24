@@ -493,23 +493,46 @@ function submitVisit() {
 
   const url = SHEETS_URL + "?" + params.toString();
 
-  const fotoGuardar = photoBase64; // guardar ref antes del reset
+  const fotoGuardar = photoBase64;
 
-  // Intentar fetch primero, fallback a JSONP
-  fetch(url, { method: "GET", mode: "no-cors" })
-    .then(() => new Promise(resolve => setTimeout(resolve, 2000)))
-    .then(() => verificarVisita(id))
-    .then((ok) => {
-      showToast(ok ? "✅ Visita registrada en Sheets" : "✅ Visita enviada");
+  // JSONP directo — igual que el script de prueba que funciona en el celular
+  const cbName = "vc_" + id;
+  const s = document.createElement("script");
+  s.src = url + "&callback=" + cbName;
+
+  window[cbName] = function(data) {
+    delete window[cbName];
+    try { document.body.removeChild(s); } catch(e) {}
+    if (data && data.success) {
+      showToast("✅ Visita registrada en Sheets");
       resetForm();
+      if (fotoGuardar) subirFotoBase64(id, fotoGuardar);
+    } else {
+      showToast("⚠️ Error: " + (data && data.error ? data.error : "intenta de nuevo"), true);
+    }
+    btn.disabled = false;
+    btn.innerHTML = "✓ &nbsp; Registrar Visita";
+  };
+
+  s.onerror = function() {
+    delete window[cbName];
+    try { document.body.removeChild(s); } catch(e) {}
+    showToast("⚠️ Error de conexión", true);
+    btn.disabled = false;
+    btn.innerHTML = "✓ &nbsp; Registrar Visita";
+  };
+
+  setTimeout(function() {
+    if (window[cbName]) {
+      delete window[cbName];
+      try { document.body.removeChild(s); } catch(e) {}
+      showToast("⚠️ Sin respuesta del servidor", true);
       btn.disabled = false;
       btn.innerHTML = "✓ &nbsp; Registrar Visita";
-      // Subir foto después del reset
-      if (fotoGuardar) subirFotoBase64(id, fotoGuardar);
-    })
-    .catch(() => {
-      enviarPorJSONP(url, id, btn, fotoGuardar);
-    });
+    }
+  }, 12000);
+
+  document.body.appendChild(s);
 }
 
 // Sube foto en chunks via múltiples requests JSONP
@@ -536,55 +559,7 @@ function subirFotoBase64(visitId, base64) {
   } catch(e) {}
 }
 
-function verificarVisita(id) {
-  return new Promise((resolve) => {
-    const cbName = "ver_" + id;
-    const s = document.createElement("script");
-    s.src = SHEETS_URL + "?action=verificar&id=" + id + "&callback=" + cbName;
-    window[cbName] = function(data) {
-      delete window[cbName];
-      if (document.body.contains(s)) document.body.removeChild(s);
-      resolve(data && data.found);
-    };
-    s.onerror = function() {
-      delete window[cbName];
-      if (document.body.contains(s)) document.body.removeChild(s);
-      resolve(false);
-    };
-    setTimeout(() => { if(window[cbName]){ delete window[cbName]; resolve(false); } }, 3000);
-    document.body.appendChild(s);
-  });
-}
 
-function enviarPorJSONP(url, id, btn, fotoGuardar) {
-  const cbName = "vc_" + id;
-  const s = document.createElement("script");
-  s.src = url + "&callback=" + cbName;
-  window[cbName] = function(data) {
-    delete window[cbName];
-    if (document.body.contains(s)) document.body.removeChild(s);
-    showToast(data && data.success ? "✅ Visita registrada en Sheets" : "✅ Visita enviada");
-    resetForm();
-    btn.disabled = false; btn.innerHTML = "✓ &nbsp; Registrar Visita";
-    if (fotoGuardar) subirFotoBase64(id, fotoGuardar);
-  };
-  s.onerror = function() {
-    delete window[cbName];
-    if (document.body.contains(s)) document.body.removeChild(s);
-    showToast("✅ Visita guardada");
-    resetForm();
-    btn.disabled = false; btn.innerHTML = "✓ &nbsp; Registrar Visita";
-    if (fotoGuardar) subirFotoBase64(id, fotoGuardar);
-  };
-  setTimeout(() => {
-    if (window[cbName]) {
-      delete window[cbName];
-      showToast("✅ Visita enviada");
-      btn.disabled = false; btn.innerHTML = "✓ &nbsp; Registrar Visita";
-    }
-  }, 8000);
-  document.body.appendChild(s);
-}
 
 // ── Guardar nuevo cliente
 function guardarNuevoCliente() {
