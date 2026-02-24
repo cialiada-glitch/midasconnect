@@ -415,36 +415,34 @@ function resetParcial() {
   }
 }
 
-// ── Subir foto via FormData POST (comprimida)
+// ── Subir foto: comprimir y enviar base64 como texto plano
 function subirFoto(visitId, b64) {
   try {
     var img = new Image();
     img.onload = function() {
       var canvas = document.createElement("canvas");
-      var MAX = 1024;
+      var MAX = 800;
       var ratio = Math.min(MAX/img.width, MAX/img.height, 1);
       canvas.width  = Math.round(img.width  * ratio);
       canvas.height = Math.round(img.height * ratio);
       canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
-      var compressed = canvas.toDataURL("image/jpeg", 0.6);
-      enviarFormData(visitId, compressed);
+      var small = canvas.toDataURL("image/jpeg", 0.5);
+      enviarFotoPost(visitId, small);
     };
     img.src = b64;
   } catch(e) {}
 }
 
-function enviarFormData(visitId, b64) {
+function enviarFotoPost(visitId, b64) {
   try {
-    var parts = b64.split(",");
-    var bstr  = atob(parts[1]);
-    var arr   = new Uint8Array(bstr.length);
-    for (var i = 0; i < bstr.length; i++) arr[i] = bstr.charCodeAt(i);
-    var blob  = new Blob([arr], {type: "image/jpeg"});
-    var fd    = new FormData();
-    fd.append("action", "subirFoto");
-    fd.append("id", String(visitId));
-    fd.append("foto", blob, "visita_" + visitId + ".jpg");
-    fetch(URL, {method: "POST", mode: "no-cors", body: fd});
+    // Enviar como JSON text/plain — Apps Script lee e.postData.contents
+    var body = JSON.stringify({ action: "subirFoto", id: String(visitId), foto: b64 });
+    fetch(URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain" },
+      body: body
+    });
   } catch(e) {}
 }
 
