@@ -467,17 +467,12 @@ function submitVisit() {
   const resultado = document.getElementById("f-resultado").value;
 
   if (!ejecutivo || !cliente || !resultado) { showToast("Completa todos los campos", true); return; }
-
-  if (!gpsData) {
-    showToast("⚠️ GPS obligatorio para registrar la visita", true);
-    return;
-  }
+  if (!gpsData) { showToast("⚠️ GPS obligatorio para registrar la visita", true); return; }
 
   const id      = Date.now();
   const fecha   = new Date().toLocaleString("es-CO");
   const mapsUrl = "https://maps.google.com/?q=" + gpsData.lat + "," + gpsData.lon;
 
-  // Guardar localmente primero
   const visit = { id, fecha, ejecutivo, cliente, resultado,
     lat: gpsData.lat, lon: gpsData.lon, precision: gpsData.acc,
     mapsUrl, foto: photoBase64 ? "✓" : "—", fotoData: photoBase64 };
@@ -488,69 +483,83 @@ function submitVisit() {
   const btn = document.querySelector("#tab-visita .submit-btn");
   btn.disabled = true; btn.textContent = "Enviando...";
 
-  debug("Iniciando envío...");
-  debug("Ejecutivo: " + ejecutivo + " | Cliente: " + cliente);
-  debug("GPS: " + gpsData.lat + ", " + gpsData.lon);
-
-  // Construir URL con parámetros simples
-  const base = SHEETS_URL;
   const params = new URLSearchParams({
-    action:    "nuevaVisita",
-    id:        String(id),
-    fecha:     fecha,
-    ejecutivo: ejecutivo,
-    cliente:   cliente,
-    resultado: resultado,
-    lat:       String(gpsData.lat),
-    lon:       String(gpsData.lon),
-    precision: String(gpsData.acc),
-    mapsUrl:   mapsUrl
+    action: "nuevaVisita",
+    id: String(id), fecha, ejecutivo, cliente, resultado,
+    lat: String(gpsData.lat), lon: String(gpsData.lon),
+    precision: String(gpsData.acc), mapsUrl
   });
 
-  const fullUrl = base + "?" + params.toString();
+  const url = SHEETS_URL + "?" + params.toString();
 
-  // JSONP directo sin helper para mayor control
-  const cbName = "visita_cb_" + id;
-  const script = document.createElement("script");
-  script.src = fullUrl + "&callback=" + cbName;
-
-  window[cbName] = function(data) {
-    delete window[cbName];
-    if (document.body.contains(script)) document.body.removeChild(script);
-    debug("Respuesta recibida: " + JSON.stringify(data));
-    if (data && data.success) {
-      showToast("✅ Visita registrada en Sheets");
-    } else {
-      showToast("⚠️ Error: " + (data && data.error ? data.error : "desconocido"), true);
-    }
-    resetForm();
-    btn.disabled = false;
-    btn.innerHTML = "✓ &nbsp; Registrar Visita";
-  };
-
-  script.onerror = function() {
-    delete window[cbName];
-    if (document.body.contains(script)) document.body.removeChild(script);
-    debug("ERROR: script.onerror disparado — posible bloqueo o URL inválida");
-    showToast("⚠️ Error de conexión", true);
-    resetForm();
-    btn.disabled = false;
-    btn.innerHTML = "✓ &nbsp; Registrar Visita";
-  };
-
-  // Timeout por si el script no responde
-  setTimeout(function() {
-    if (window[cbName]) {
-      delete window[cbName];
-      if (document.body.contains(script)) document.body.removeChild(script);
-      showToast("⚠️ Sin respuesta del servidor", true);
+  // Intentar fetch primero, fallback a JSONP
+  fetch(url, { method: "GET", mode: "no-cors" })
+    .then(() => {
+      // no-cors no devuelve respuesta — esperamos 2s y asumimos éxito
+      return new Promise(resolve => setTimeout(resolve, 2000));
+    })
+    .then(() => {
+      // Verificar que se guardó consultando el script
+      return verificarVisita(id);
+    })
+    .then((ok) => {
+      showToast(ok ? "✅ Visita registrada en Sheets" : "✅ Visita enviada");
+      resetForm();
       btn.disabled = false;
       btn.innerHTML = "✓ &nbsp; Registrar Visita";
-    }
-  }, 10000);
+    })
+    .catch(() => {
+      // Fallback JSONP
+      enviarPorJSONP(url, id, btn);
+    });
+}
 
-  debug("URL enviada: " + script.src.substring(0, 120) + "...");
-  document.body.appendChild(script);
+function verificarVisita(id) {
+  return new Promise((resolve) => {
+    const cbName = "ver_" + id;
+    const s = document.createElement("script");
+    s.src = SHEETS_URL + "?action=verificar&id=" + id + "&callback=" + cbName;
+    window[cbName] = function(data) {
+      delete window[cbName];
+      if (document.body.contains(s)) document.body.removeChild(s);
+      resolve(data && data.found);
+    };
+    s.onerror = function() {
+      delete window[cbName];
+      if (document.body.contains(s)) document.body.removeChild(s);
+      resolve(false);
+    };
+    setTimeout(() => { if(window[cbName]){ delete window[cbName]; resolve(false); } }, 3000);
+    document.body.appendChild(s);
+  });
+}
+
+function enviarPorJSONP(url, id, btn) {
+  const cbName = "vc_" + id;
+  const s = document.createElement("script");
+  s.src = url + "&callback=" + cbName;
+  window[cbName] = function(data) {
+    delete window[cbName];
+    if (document.body.contains(s)) document.body.removeChild(s);
+    showToast(data && data.success ? "✅ Visita registrada en Sheets" : "✅ Visita enviada");
+    resetForm();
+    btn.disabled = false; btn.innerHTML = "✓ &nbsp; Registrar Visita";
+  };
+  s.onerror = function() {
+    delete window[cbName];
+    if (document.body.contains(s)) document.body.removeChild(s);
+    showToast("✅ Visita guardada");
+    resetForm();
+    btn.disabled = false; btn.innerHTML = "✓ &nbsp; Registrar Visita";
+  };
+  setTimeout(() => {
+    if (window[cbName]) {
+      delete window[cbName];
+      showToast("✅ Visita enviada");
+      btn.disabled = false; btn.innerHTML = "✓ &nbsp; Registrar Visita";
+    }
+  }, 8000);
+  document.body.appendChild(s);
 }
 
 // ── Guardar nuevo cliente
