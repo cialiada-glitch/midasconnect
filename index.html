@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0f1923">
+<title>VisitTrack — Reporte de Visitas</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0f14;
+    --surface: #121c24;
+    --surface2: #1a2733;
+    --accent: #00e5a0;
+    --accent2: #0096ff;
+    --danger: #ff4d6a;
+    --text: #e8f0f7;
+    --muted: #5a7a90;
+    --border: #1e3040;
+    --radius: 16px;
+    --font-head: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px 16px 100px;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+  }
+
+  .logo {
+    font-family: var(--font-head);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+
+  .logo span {
+    color: var(--accent);
+  }
+
+  .badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .badge.live {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .badge.live::before {
+    content: '● ';
+    animation: blink 1.2s infinite;
+  }
+
+  @keyframes blink { 0%, 100% { opacity: 1 } 50% { opacity: 0.3 } }
+
+  /* GPS Banner */
+  #gps-banner {
+    background: linear-gradient(135deg, var(--surface2), #0d2030);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent2);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.4s ease;
+  }
+
+  #gps-banner.ok {
+    border-left-color: var(--accent);
+  }
+
+  .gps-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+
+  .gps-info {
+    flex: 1;
+  }
+
+  .gps-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+
+  .gps-value {
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    word-break: break-all;
+  }
+
+  #gps-btn {
+    background: var(--accent2);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.2s;
+  }
+
+  #gps-btn:hover { opacity: 0.85; }
+  #gps-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Form Card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  .field {
+    margin-bottom: 18px;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 8px;
+  }
+
+  input[type="text"],
+  input[type="tel"],
+  select,
+  textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 15px;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+  }
+
+  select option { background: var(--surface2); }
+
+  textarea {
+    resize: none;
+    height: 90px;
+    line-height: 1.5;
+  }
+
+  /* Photo capture */
+  .photo-zone {
+    position: relative;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    overflow: hidden;
+  }
+
+  .photo-zone:hover {
+    border-color: var(--accent2);
+    background: rgba(0,150,255,0.04);
+  }
+
+  .photo-zone.has-photo {
+    border-style: solid;
+    border-color: var(--accent);
+  }
+
+  .photo-zone img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 12px;
+  }
+
+  .photo-overlay {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.7);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #fff;
+    backdrop-filter: blur(4px);
+  }
+
+  .photo-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    pointer-events: none;
+  }
+
+  .photo-placeholder .icon {
+    font-size: 36px;
+    opacity: 0.6;
+  }
+
+  .photo-placeholder p {
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .photo-placeholder span {
+    font-size: 11px;
+    opacity: 0.6;
+  }
+
+  #photo-input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Submit */
+  .submit-btn {
+    width: 100%;
+    padding: 18px;
+    background: linear-gradient(135deg, var(--accent), #00b87a);
+    border: none;
+    border-radius: var(--radius);
+    color: #0a0f14;
+    font-family: var(--font-head);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: transform 0.15s, opacity 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 30px rgba(0,229,160,0.2);
+    margin-top: 8px;
+  }
+
+  .submit-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 40px rgba(0,229,160,0.3);
+  }
+
+  .submit-btn:active { transform: scale(0.98); }
+  .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--surface2);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 14px 24px;
+    border-radius: 30px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    transition: transform 0.3s ease;
+    white-space: nowrap;
+    z-index: 100;
+  }
+
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.error { border-color: var(--danger); color: var(--danger); }
+
+  /* Visits log */
+  .log-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .log-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .log-title {
+    font-family: var(--font-head);
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .log-count {
+    background: var(--accent);
+    color: #0a0f14;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 9px;
+    border-radius: 20px;
+  }
+
+  .visit-item {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    animation: slideIn 0.3s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .visit-item:last-child { border-bottom: none; }
+
+  .visit-thumb {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: var(--surface2);
+  }
+
+  .visit-no-thumb {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    background: var(--surface2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .visit-details { flex: 1; min-width: 0; }
+
+  .visit-client {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 2px;
+  }
+
+  .visit-meta {
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .status-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .s-exitosa { background: rgba(0,229,160,0.15); color: var(--accent); }
+  .s-pendiente { background: rgba(0,150,255,0.15); color: var(--accent2); }
+  .s-nocontacto { background: rgba(255,77,106,0.15); color: var(--danger); }
+
+  .export-btn {
+    margin: 0 20px 20px;
+    width: calc(100% - 40px);
+    padding: 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+    font-family: var(--font-body);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .export-btn:hover {
+    border-color: var(--accent2);
+    color: var(--accent2);
+  }
+
+  .empty-log {
+    padding: 30px 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  /* Separator */
+  .section-label {
+    font-family: var(--font-head);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin: 28px 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="logo">Visit<span>Track</span></div>
+    <div class="badge live" id="status-badge">GPS Inactivo</div>
+  </div>
+
+  <!-- GPS Banner -->
+  <div id="gps-banner">
+    <div class="gps-icon">📍</div>
+    <div class="gps-info">
+      <div class="gps-label">Ubicación actual</div>
+      <div class="gps-value" id="gps-text">Sin ubicación capturada</div>
+    </div>
+    <button id="gps-btn" onclick="captureGPS()">Obtener GPS</button>
+  </div>
+
+  <!-- Form -->
+  <div class="card">
+    <div class="card-title">Nueva Visita</div>
+
+    <div class="field">
+      <label>Ejecutivo</label>
+      <select id="f-ejecutivo" onchange="cargarClientes()">
+        <option value="">— Cargando ejecutivos... —</option>
+      </select>
+      <div id="ejecutivo-status" style="font-size:11px;color:var(--muted);margin-top:6px;display:none"></div>
+    </div>
+
+    <div class="field">
+      <label>Cliente / Empresa</label>
+      <select id="f-cliente" disabled>
+        <option value="">— Primero selecciona un ejecutivo —</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Contacto</label>
+      <input type="text" id="f-contacto" placeholder="Persona atendida">
+    </div>
+
+    <div class="field">
+      <label>Resultado de la visita</label>
+      <select id="f-resultado">
+        <option value="">— Selecciona —</option>
+        <option value="Exitosa">✅ Exitosa</option>
+        <option value="Pendiente">🔄 Pendiente seguimiento</option>
+        <option value="No contacto">❌ No hubo contacto</option>
+        <option value="Demostración">🎯 Demostración realizada</option>
+        <option value="Propuesta enviada">📄 Propuesta enviada</option>
+        <option value="Cierre">🏆 Cierre de venta</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Notas / Comentarios</label>
+      <textarea id="f-notas" placeholder="Observaciones, próximos pasos, acuerdos..."></textarea>
+    </div>
+  </div>
+
+  <!-- Photo -->
+  <div class="card">
+    <div class="card-title">Evidencia Fotográfica</div>
+    <div class="photo-zone" id="photo-zone" onclick="openCamera()">
+      <input type="file" accept="image/*" capture="environment" id="photo-input" onchange="handlePhoto(event)" style="display:none">
+      <div class="photo-placeholder" id="photo-placeholder">
+        <div class="icon">📷</div>
+        <p>Tomar foto</p>
+        <span>Solo cámara del dispositivo</span>
+      </div>
+    </div>
+  </div>
+
+  <button class="submit-btn" onclick="submitVisit()">
+    ✓ &nbsp; Registrar Visita
+  </button>
+
+  <!-- Log -->
+  <div class="section-label">Visitas registradas hoy</div>
+
+  <div class="log-card">
+    <div class="log-header">
+      <div class="log-title">Historial</div>
+      <div class="log-count" id="visit-count">0</div>
+    </div>
+    <div id="visits-list">
+      <div class="empty-log">Aún no hay visitas registradas</div>
+    </div>
+    <button class="export-btn" onclick="exportCSV()">⬇ Exportar CSV</button>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ⚙️ PEGA AQUÍ TU URL DEL WEB APP DE GOOGLE APPS SCRIPT
+const SHEETS_URL = 'TU_URL_AQUI';
+// Misma URL — el script distingue por parámetro ?action=catalogo
+const CATALOG_URL = SHEETS_URL;
+
+let gpsData = null;
+let photoBase64 = null;
+let visits = JSON.parse(localStorage.getItem('vt_visits') || '[]');
+
+// ── Render visits on load
+renderVisits();
+
+// ── Cargar ejecutivos al iniciar
+cargarEjecutivos();
+
+// ── Catálogo ejecutivos / clientes
+let catalogData = {};
+
+function cargarEjecutivos() {
+  const sel = document.getElementById('f-ejecutivo');
+  const status = document.getElementById('ejecutivo-status');
+
+  if (CATALOG_URL === 'TU_URL_AQUI') {
+    // Modo demo sin Sheets configurado
+    catalogData = {
+      'Demo Ejecutivo 1': ['Cliente A', 'Cliente B', 'Cliente C'],
+      'Demo Ejecutivo 2': ['Cliente D', 'Cliente E'],
+    };
+    poblarEjecutivos();
+    return;
+  }
+
+  status.style.display = 'block';
+  status.textContent = '⏳ Cargando...';
+
+  fetch(CATALOG_URL + '?action=catalogo')
+    .then(r => r.json())
+    .then(data => {
+      catalogData = data;
+      poblarEjecutivos();
+      status.textContent = '✓ ' + Object.keys(data).length + ' ejecutivos cargados';
+      setTimeout(() => { status.style.display = 'none'; }, 2000);
+    })
+    .catch(() => {
+      status.textContent = '⚠️ No se pudo cargar el catálogo';
+    });
+}
+
+function poblarEjecutivos() {
+  const sel = document.getElementById('f-ejecutivo');
+  sel.innerHTML = '<option value="">— Selecciona tu nombre —</option>';
+  Object.keys(catalogData).sort().forEach(ej => {
+    const opt = document.createElement('option');
+    opt.value = ej;
+    opt.textContent = ej;
+    sel.appendChild(opt);
+  });
+}
+
+function cargarClientes() {
+  const ejecutivo = document.getElementById('f-ejecutivo').value;
+  const clienteSel = document.getElementById('f-cliente');
+
+  if (!ejecutivo) {
+    clienteSel.innerHTML = '<option value="">— Primero selecciona un ejecutivo —</option>';
+    clienteSel.disabled = true;
+    return;
+  }
+
+  const clientes = catalogData[ejecutivo] || [];
+  clienteSel.innerHTML = '<option value="">— Selecciona cliente —</option>';
+  clientes.sort().forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = c;
+    clienteSel.appendChild(opt);
+  });
+  clienteSel.disabled = false;
+}
+
+// ── GPS
+function captureGPS() {
+  const btn = document.getElementById('gps-btn');
+  btn.disabled = true;
+  btn.textContent = '...';
+
+  if (!navigator.geolocation) {
+    showToast('Tu dispositivo no soporta GPS', true);
+    btn.disabled = false;
+    btn.textContent = 'Obtener GPS';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const { latitude, longitude, accuracy } = pos.coords;
+      gpsData = { lat: latitude, lon: longitude, acc: Math.round(accuracy) };
+      const text = `${latitude.toFixed(6)}, ${longitude.toFixed(6)} (±${gpsData.acc}m)`;
+      document.getElementById('gps-text').textContent = text;
+      document.getElementById('gps-banner').classList.add('ok');
+      document.getElementById('status-badge').textContent = 'GPS Activo';
+      document.getElementById('status-badge').classList.add('live');
+      btn.textContent = '✓ Listo';
+      btn.style.background = '#00e5a0';
+      btn.style.color = '#0a0f14';
+      showToast('📍 Ubicación capturada');
+    },
+    (err) => {
+      const msgs = { 1: 'Permiso denegado', 2: 'GPS no disponible', 3: 'Tiempo agotado' };
+      showToast(msgs[err.code] || 'Error de GPS', true);
+      btn.disabled = false;
+      btn.textContent = 'Reintentar';
+    },
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+  );
+}
+
+// ── Camera only
+function openCamera() {
+  document.getElementById('photo-input').click();
+}
+
+// ── Photo
+function handlePhoto(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { showToast('Foto muy grande (máx 5MB)', true); return; }
+
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    photoBase64 = ev.target.result;
+    const zone = document.getElementById('photo-zone');
+    zone.classList.add('has-photo');
+    zone.innerHTML = `
+      <input type="file" accept="image/*" capture="environment" id="photo-input" onchange="handlePhoto(event)" style="display:none">
+      <img src="${photoBase64}" alt="Evidencia" onclick="openCamera()" style="cursor:pointer">
+      <div class="photo-overlay">📷 Cambiar foto</div>
+    `;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Submit
+function submitVisit() {
+  const fields = {
+    ejecutivo: document.getElementById('f-ejecutivo').value.trim(),
+    cliente: document.getElementById('f-cliente').value.trim(),
+    contacto: document.getElementById('f-contacto').value.trim(),
+    resultado: document.getElementById('f-resultado').value,
+    notas: document.getElementById('f-notas').value.trim(),
+  };
+
+  if (!fields.ejecutivo || !fields.cliente || !fields.resultado) {
+    showToast('Completa los campos requeridos', true);
+    return;
+  }
+  if (!gpsData) {
+    showToast('Captura el GPS primero', true);
+    return;
+  }
+
+  const visit = {
+    id: Date.now(),
+    fecha: new Date().toLocaleString('es-MX'),
+    ...fields,
+    lat: gpsData.lat,
+    lon: gpsData.lon,
+    precision: gpsData.acc,
+    foto: photoBase64 ? '✓ Adjunta' : '—',
+    mapsUrl: `https://maps.google.com/?q=${gpsData.lat},${gpsData.lon}`,
+    fotoData: photoBase64,
+  };
+
+  visits.unshift(visit);
+  localStorage.setItem('vt_visits', JSON.stringify(visits));
+  renderVisits();
+
+  // ── Enviar a Google Sheets
+  const btn = document.querySelector('.submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+
+  if (SHEETS_URL === 'TU_URL_AQUI') {
+    // Sin URL configurada: solo guarda local
+    resetForm();
+    showToast('✅ Visita guardada localmente');
+    btn.disabled = false;
+    btn.innerHTML = '✓ &nbsp; Registrar Visita';
+    return;
+  }
+
+  const payload = {
+    id: visit.id,
+    fecha: visit.fecha,
+    ejecutivo: visit.ejecutivo,
+    cliente: visit.cliente,
+    contacto: visit.contacto,
+    resultado: visit.resultado,
+    notas: visit.notas,
+    lat: visit.lat,
+    lon: visit.lon,
+    precision: visit.precision,
+    mapsUrl: visit.mapsUrl,
+    fotoBase64: photoBase64 || null,
+  };
+
+  fetch(SHEETS_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  .then(() => {
+    resetForm();
+    showToast('✅ Visita enviada a Google Sheets');
+  })
+  .catch(() => {
+    resetForm();
+    showToast('⚠️ Guardado local (sin conexión)');
+  })
+  .finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = '✓ &nbsp; Registrar Visita';
+  });
+}
+
+function renderVisits() {
+  const list = document.getElementById('visits-list');
+  document.getElementById('visit-count').textContent = visits.length;
+
+  if (!visits.length) {
+    list.innerHTML = '<div class="empty-log">Aún no hay visitas registradas</div>';
+    return;
+  }
+
+  const statusClass = { Exitosa: 's-exitosa', 'Pendiente': 's-pendiente', 'No contacto': 's-nocontacto' };
+
+  list.innerHTML = visits.map(v => `
+    <div class="visit-item">
+      ${v.fotoData
+        ? `<img class="visit-thumb" src="${v.fotoData}" alt="">`
+        : `<div class="visit-no-thumb">🏢</div>`}
+      <div class="visit-details">
+        <div class="visit-client">${v.cliente}</div>
+        <div class="visit-meta">
+          <span>${v.ejecutivo}</span>
+          <span class="status-pill ${statusClass[v.resultado] || 's-pendiente'}">${v.resultado}</span>
+        </div>
+        <div class="visit-meta" style="margin-top:4px">
+          <span>🕐 ${v.fecha}</span>
+          <a href="${v.mapsUrl}" target="_blank" style="color:#0096ff;text-decoration:none">📍 Ver mapa</a>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function resetForm() {
+  ['f-contacto','f-notas'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('f-resultado').value = '';
+  document.getElementById('f-cliente').value = '';
+  document.getElementById('f-cliente').disabled = true;
+  document.getElementById('f-ejecutivo').value = '';
+  gpsData = null;
+  photoBase64 = null;
+  document.getElementById('gps-text').textContent = 'Sin ubicación capturada';
+  document.getElementById('gps-banner').classList.remove('ok');
+  document.getElementById('status-badge').textContent = 'GPS Inactivo';
+  document.getElementById('status-badge').classList.remove('live');
+  const btn = document.getElementById('gps-btn');
+  btn.disabled = false;
+  btn.textContent = 'Obtener GPS';
+  btn.style.background = '';
+  btn.style.color = '';
+
+  const zone = document.getElementById('photo-zone');
+  zone.classList.remove('has-photo');
+  zone.innerHTML = `
+    <input type="file" accept="image/*" capture="environment" id="photo-input" onchange="handlePhoto(event)" style="display:none">
+    <div class="photo-placeholder" id="photo-placeholder" onclick="openCamera()" style="cursor:pointer">
+      <div class="icon">📷</div>
+      <p>Tomar foto</p>
+      <span>Solo cámara del dispositivo</span>
+    </div>
+  `;
+}
+
+// ── Export CSV
+function exportCSV() {
+  if (!visits.length) { showToast('No hay visitas para exportar', true); return; }
+  const headers = ['Fecha','Ejecutivo','Cliente','Contacto','Resultado','Notas','Latitud','Longitud','Precisión (m)','Google Maps','Foto'];
+  const rows = visits.map(v => [
+    `"${v.fecha}"`, `"${v.ejecutivo}"`, `"${v.cliente}"`, `"${v.contacto}"`,
+    `"${v.resultado}"`, `"${v.notas.replace(/"/g,'""')}"`,
+    v.lat, v.lon, v.precision, `"${v.mapsUrl}"`, v.foto
+  ]);
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `visitas_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  showToast('📊 CSV descargado');
+}
+
+// ── Toast
+function showToast(msg, error = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = error ? 'error' : '';
+  requestAnimationFrame(() => { t.classList.add('show'); });
+  setTimeout(() => { t.classList.remove('show'); }, 3000);
+}
+</script>
+</body>
+</html>
