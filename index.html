@@ -205,6 +205,9 @@
     <button id="gps-btn" onclick="captureGPS()">Obtener GPS</button>
   </div>
 
+  <!-- DEBUG PANEL -->
+  <div id="debug-panel" style="display:none;background:#1a1a1a;color:#00ff88;font-family:monospace;font-size:11px;padding:12px;border-radius:12px;margin-bottom:12px;word-break:break-all;white-space:pre-wrap;max-height:150px;overflow-y:auto;"></div>
+
   <!-- TABS -->
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('visita')">📋 Registrar Visita</button>
@@ -485,6 +488,10 @@ function submitVisit() {
   const btn = document.querySelector("#tab-visita .submit-btn");
   btn.disabled = true; btn.textContent = "Enviando...";
 
+  debug("Iniciando envío...");
+  debug("Ejecutivo: " + ejecutivo + " | Cliente: " + cliente);
+  debug("GPS: " + gpsData.lat + ", " + gpsData.lon);
+
   // Construir URL con parámetros simples
   const base = SHEETS_URL;
   const params = new URLSearchParams({
@@ -510,6 +517,7 @@ function submitVisit() {
   window[cbName] = function(data) {
     delete window[cbName];
     if (document.body.contains(script)) document.body.removeChild(script);
+    debug("Respuesta recibida: " + JSON.stringify(data));
     if (data && data.success) {
       showToast("✅ Visita registrada en Sheets");
     } else {
@@ -523,6 +531,7 @@ function submitVisit() {
   script.onerror = function() {
     delete window[cbName];
     if (document.body.contains(script)) document.body.removeChild(script);
+    debug("ERROR: script.onerror disparado — posible bloqueo o URL inválida");
     showToast("⚠️ Error de conexión", true);
     resetForm();
     btn.disabled = false;
@@ -540,6 +549,7 @@ function submitVisit() {
     }
   }, 10000);
 
+  debug("URL enviada: " + script.src.substring(0, 120) + "...");
   document.body.appendChild(script);
 }
 
@@ -661,6 +671,15 @@ function exportCSV() {
 }
 
 // ── Toast
+function debug(msg) {
+  const panel = document.getElementById("debug-panel");
+  panel.style.display = "block";
+  const time = new Date().toLocaleTimeString("es-CO");
+  panel.textContent += "[" + time + "] " + msg + "\n";
+  panel.scrollTop = panel.scrollHeight;
+  console.log("[DEBUG]", msg);
+}
+
 function showToast(msg, type) {
   const t = document.getElementById("toast");
   t.textContent = msg;
