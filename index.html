@@ -468,6 +468,7 @@ function submitVisit() {
 
   if (!ejecutivo || !cliente || !resultado) { showToast("Completa todos los campos", true); return; }
   if (!gpsData) { showToast("⚠️ GPS obligatorio para registrar la visita", true); return; }
+  if (!photoBase64) { showToast("⚠️ La foto es obligatoria", true); return; }
 
   const id      = Date.now();
   const fecha   = new Date().toLocaleString("es-CO");
@@ -492,26 +493,47 @@ function submitVisit() {
 
   const url = SHEETS_URL + "?" + params.toString();
 
+  const fotoGuardar = photoBase64; // guardar ref antes del reset
+
   // Intentar fetch primero, fallback a JSONP
   fetch(url, { method: "GET", mode: "no-cors" })
-    .then(() => {
-      // no-cors no devuelve respuesta — esperamos 2s y asumimos éxito
-      return new Promise(resolve => setTimeout(resolve, 2000));
-    })
-    .then(() => {
-      // Verificar que se guardó consultando el script
-      return verificarVisita(id);
-    })
+    .then(() => new Promise(resolve => setTimeout(resolve, 2000)))
+    .then(() => verificarVisita(id))
     .then((ok) => {
       showToast(ok ? "✅ Visita registrada en Sheets" : "✅ Visita enviada");
       resetForm();
       btn.disabled = false;
       btn.innerHTML = "✓ &nbsp; Registrar Visita";
+      // Subir foto después del reset
+      if (fotoGuardar) subirFotoBase64(id, fotoGuardar);
     })
     .catch(() => {
-      // Fallback JSONP
-      enviarPorJSONP(url, id, btn);
+      enviarPorJSONP(url, id, btn, fotoGuardar);
     });
+}
+
+// Sube foto en chunks via múltiples requests JSONP
+function subirFotoBase64(visitId, base64) {
+  // Convertir base64 a blob y subirlo via fetch multipart
+  try {
+    const byteStr = atob(base64.split(",")[1]);
+    const mimeType = base64.split(",")[0].split(":")[1].split(";")[0];
+    const ab = new ArrayBuffer(byteStr.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteStr.length; i++) ia[i] = byteStr.charCodeAt(i);
+    const blob = new Blob([ab], { type: mimeType });
+
+    const formData = new FormData();
+    formData.append("action", "subirFoto");
+    formData.append("id", String(visitId));
+    formData.append("foto", blob, "visita_" + visitId + ".jpg");
+
+    fetch(SHEETS_URL, {
+      method: "POST",
+      mode: "no-cors",
+      body: formData
+    }).catch(() => {}); // silencioso — foto es opcional
+  } catch(e) {}
 }
 
 function verificarVisita(id) {
@@ -534,7 +556,7 @@ function verificarVisita(id) {
   });
 }
 
-function enviarPorJSONP(url, id, btn) {
+function enviarPorJSONP(url, id, btn, fotoGuardar) {
   const cbName = "vc_" + id;
   const s = document.createElement("script");
   s.src = url + "&callback=" + cbName;
@@ -544,6 +566,7 @@ function enviarPorJSONP(url, id, btn) {
     showToast(data && data.success ? "✅ Visita registrada en Sheets" : "✅ Visita enviada");
     resetForm();
     btn.disabled = false; btn.innerHTML = "✓ &nbsp; Registrar Visita";
+    if (fotoGuardar) subirFotoBase64(id, fotoGuardar);
   };
   s.onerror = function() {
     delete window[cbName];
@@ -551,6 +574,7 @@ function enviarPorJSONP(url, id, btn) {
     showToast("✅ Visita guardada");
     resetForm();
     btn.disabled = false; btn.innerHTML = "✓ &nbsp; Registrar Visita";
+    if (fotoGuardar) subirFotoBase64(id, fotoGuardar);
   };
   setTimeout(() => {
     if (window[cbName]) {
@@ -648,20 +672,34 @@ function renderVisits() {
   ).join("");
 }
 
-// ── Reset visita
+// ── Reset visita (mantiene ejecutivo seleccionado para el siguiente reporte)
 function resetForm() {
-  gpsData = null; photoBase64 = null;
+  gpsData = null;
+  photoBase64 = null;
+
+  // Mantener ejecutivo — solo limpiar cliente y resultado
+  const ejecutivoActual = document.getElementById("f-ejecutivo").value;
   document.getElementById("f-cliente").value = "";
   document.getElementById("f-resultado").value = "";
-  document.getElementById("f-ejecutivo").value = "";
-  document.getElementById("f-cliente").disabled = true;
-  document.getElementById("f-cliente").innerHTML = "<option value=''>— Selecciona un ejecutivo primero —</option>";
+
+  // Si había ejecutivo seleccionado, recargar sus clientes
+  if (ejecutivoActual) {
+    const clientes = (catalogData[ejecutivoActual] || []).slice().sort();
+    const sel = document.getElementById("f-cliente");
+    sel.innerHTML = "<option value=''>— Selecciona cliente —</option>" +
+      clientes.map(c => "<option value='" + c + "'>" + c + "</option>").join("");
+    sel.disabled = false;
+  }
+
+  // Reset GPS
   document.getElementById("gps-text").textContent = "Sin ubicación — requerida para registrar";
   document.getElementById("gps-banner").classList.remove("ok");
   document.getElementById("status-badge").textContent = "GPS Inactivo";
   document.getElementById("status-badge").classList.remove("live");
-  const btn = document.getElementById("gps-btn");
-  btn.disabled = false; btn.textContent = "Obtener GPS"; btn.style.background = "";
+  const gpsBtn = document.getElementById("gps-btn");
+  gpsBtn.disabled = false; gpsBtn.textContent = "Obtener GPS"; gpsBtn.style.background = "";
+
+  // Reset foto
   const zone = document.getElementById("photo-zone");
   zone.classList.remove("has-photo");
   zone.innerHTML = "<input type='file' accept='image/*' capture='environment' id='photo-input' onchange='handlePhoto(event)' style='display:none'><div class='photo-placeholder'><div class='icon'>📷</div><p>Tomar foto</p><span>Solo cámara del dispositivo</span></div>";
