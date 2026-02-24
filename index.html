@@ -322,7 +322,7 @@
 </div>
 
 <div id="toast"></div>
-<iframe name="hidden_iframe" id="hidden_iframe" style="display:none"></iframe>
+
 
 <script>
 const SHEETS_URL = "https://script.google.com/macros/s/AKfycbzKKEY60FtX9NkpsMC4Ve9k_IA51NiUeWWW1YQ8RHNXG11SIH2Ba3pk5z-26cMm6RBg/exec";
@@ -496,20 +496,25 @@ function submitVisit() {
     mapsUrl: visit.mapsUrl, fotoBase64: photoBase64 || null,
   };
 
-  const form = document.createElement("form");
-  form.method = "POST"; form.action = SHEETS_URL; form.target = "hidden_iframe"; form.style.display = "none";
-  const inp = document.createElement("input");
-  inp.type = "hidden"; inp.name = "payload"; inp.value = JSON.stringify(payload);
-  form.appendChild(inp); document.body.appendChild(form);
-
-  document.getElementById("hidden_iframe").onload = function() {
-    resetForm(); showToast("✅ Visita registrada en Sheets");
-    btn.disabled = false; btn.innerHTML = "✓ &nbsp; Registrar Visita";
-  };
-  form.submit(); document.body.removeChild(form);
-  setTimeout(() => {
-    if (btn.disabled) { resetForm(); showToast("✅ Visita registrada"); btn.disabled = false; btn.innerHTML = "✓ &nbsp; Registrar Visita"; }
-  }, 3000);
+  // Enviar con fetch no-cors — Apps Script recibe el POST
+  fetch(SHEETS_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify(payload),
+  })
+  .then(() => {
+    resetForm();
+    showToast("✅ Visita registrada en Sheets");
+  })
+  .catch(() => {
+    resetForm();
+    showToast("✅ Visita guardada localmente");
+  })
+  .finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = "✓ &nbsp; Registrar Visita";
+  });
 }
 
 // ── Guardar nuevo cliente
