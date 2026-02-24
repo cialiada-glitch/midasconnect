@@ -530,11 +530,6 @@
     </div>
 
     <div class="field">
-      <label>Contacto</label>
-      <input type="text" id="f-contacto" placeholder="Persona atendida">
-    </div>
-
-    <div class="field">
       <label>Resultado de la visita</label>
       <select id="f-resultado">
         <option value="">— Selecciona —</option>
@@ -547,10 +542,6 @@
       </select>
     </div>
 
-    <div class="field">
-      <label>Notas / Comentarios</label>
-      <textarea id="f-notas" placeholder="Observaciones, próximos pasos, acuerdos..."></textarea>
-    </div>
   </div>
 
   <!-- Photo -->
@@ -736,9 +727,7 @@ function submitVisit() {
   const fields = {
     ejecutivo: document.getElementById('f-ejecutivo').value.trim(),
     cliente: document.getElementById('f-cliente').value.trim(),
-    contacto: document.getElementById('f-contacto').value.trim(),
     resultado: document.getElementById('f-resultado').value,
-    notas: document.getElementById('f-notas').value.trim(),
   };
 
   if (!fields.ejecutivo || !fields.cliente || !fields.resultado) {
@@ -785,9 +774,7 @@ function submitVisit() {
     fecha: visit.fecha,
     ejecutivo: visit.ejecutivo,
     cliente: visit.cliente,
-    contacto: visit.contacto,
     resultado: visit.resultado,
-    notas: visit.notas,
     lat: visit.lat,
     lon: visit.lon,
     precision: visit.precision,
@@ -847,7 +834,7 @@ function renderVisits() {
 }
 
 function resetForm() {
-  ['f-contacto','f-notas'].forEach(id => {
+  [].forEach(id => { // no text fields to reset
     document.getElementById(id).value = '';
   });
   document.getElementById('f-resultado').value = '';
@@ -907,3 +894,4 @@ function showToast(msg, error = false) {
 </script>
 </body>
 </html>
+
