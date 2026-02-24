@@ -496,25 +496,38 @@ function submitVisit() {
     mapsUrl: visit.mapsUrl, fotoBase64: photoBase64 || null,
   };
 
-  // Enviar con fetch no-cors — Apps Script recibe el POST
-  fetch(SHEETS_URL, {
-    method: "POST",
-    mode: "no-cors",
-    headers: { "Content-Type": "text/plain" },
-    body: JSON.stringify(payload),
-  })
-  .then(() => {
+  // Enviar via JSONP igual que nuevo cliente (funciona sin CORS)
+  // La foto va separada si existe, para no superar límite de URL
+  const urlParams = "?action=nuevaVisita" +
+    "&id="        + encodeURIComponent(payload.id) +
+    "&fecha="     + encodeURIComponent(payload.fecha) +
+    "&ejecutivo=" + encodeURIComponent(payload.ejecutivo) +
+    "&cliente="   + encodeURIComponent(payload.cliente) +
+    "&resultado=" + encodeURIComponent(payload.resultado) +
+    "&lat="       + encodeURIComponent(payload.lat) +
+    "&lon="       + encodeURIComponent(payload.lon) +
+    "&precision=" + encodeURIComponent(payload.precision) +
+    "&mapsUrl="   + encodeURIComponent(payload.mapsUrl);
+
+  jsonp(CATALOG_URL + urlParams, function(err, data) {
+    if (!err && data && data.success && payload.fotoBase64) {
+      // Enviar foto por separado via JSONP en chunks si es necesario
+      enviarFoto(payload.id, payload.fotoBase64);
+    }
     resetForm();
-    showToast("✅ Visita registrada en Sheets");
-  })
-  .catch(() => {
-    resetForm();
-    showToast("✅ Visita guardada localmente");
-  })
-  .finally(() => {
+    showToast(err ? "✅ Visita guardada localmente" : "✅ Visita registrada en Sheets");
     btn.disabled = false;
     btn.innerHTML = "✓ &nbsp; Registrar Visita";
   });
+}
+
+function enviarFoto(visitId, fotoBase64) {
+  // La foto se sube en un segundo llamado para no exceder URL limit
+  // Solo tomamos los primeros 8000 chars (aprox) por limitación de GET
+  // Para fotos completas se requeriría un backend diferente
+  const fotoCorta = fotoBase64.substring(0, 8000);
+  const url = CATALOG_URL + "?action=subirFoto&id=" + visitId + "&foto=" + encodeURIComponent(fotoCorta);
+  jsonp(url, function() {});
 }
 
 // ── Guardar nuevo cliente
