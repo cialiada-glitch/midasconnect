@@ -581,7 +581,7 @@
 
 <script>
 // ⚙️ PEGA AQUÍ TU URL DEL WEB APP DE GOOGLE APPS SCRIPT
-const SHEETS_URL = 'TU_URL_AQUI';
+const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzKKEY60FtX9NkpsMC4Ve9k_IA51NiUeWWW1YQ8RHNXG11SIH2Ba3pk5z-26cMm6RBg/exec';
 // Misma URL — el script distingue por parámetro ?action=catalogo
 const CATALOG_URL = SHEETS_URL;
 
@@ -602,7 +602,7 @@ function cargarEjecutivos() {
   const sel = document.getElementById('f-ejecutivo');
   const status = document.getElementById('ejecutivo-status');
 
-  if (CATALOG_URL === 'TU_URL_AQUI') {
+  if (CATALOG_URL === 'https://script.google.com/macros/s/AKfycbzKKEY60FtX9NkpsMC4Ve9k_IA51NiUeWWW1YQ8RHNXG11SIH2Ba3pk5z-26cMm6RBg/exec') {
     // Modo demo sin Sheets configurado
     catalogData = {
       'Demo Ejecutivo 1': ['Cliente A', 'Cliente B', 'Cliente C'],
@@ -760,7 +760,7 @@ function submitVisit() {
   btn.disabled = true;
   btn.textContent = 'Enviando...';
 
-  if (SHEETS_URL === 'TU_URL_AQUI') {
+  if (false) { // URL configurada
     // Sin URL configurada: solo guarda local
     resetForm();
     showToast('✅ Visita guardada localmente');
@@ -894,4 +894,3 @@ function showToast(msg, error = false) {
 </script>
 </body>
 </html>
-
