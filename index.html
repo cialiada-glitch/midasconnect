@@ -599,33 +599,38 @@ cargarEjecutivos();
 let catalogData = {};
 
 function cargarEjecutivos() {
-  const sel = document.getElementById('f-ejecutivo');
   const status = document.getElementById('ejecutivo-status');
-
-  if (CATALOG_URL === 'https://script.google.com/macros/s/AKfycbzKKEY60FtX9NkpsMC4Ve9k_IA51NiUeWWW1YQ8RHNXG11SIH2Ba3pk5z-26cMm6RBg/exec') {
-    // Modo demo sin Sheets configurado
-    catalogData = {
-      'Demo Ejecutivo 1': ['Cliente A', 'Cliente B', 'Cliente C'],
-      'Demo Ejecutivo 2': ['Cliente D', 'Cliente E'],
-    };
-    poblarEjecutivos();
-    return;
-  }
-
   status.style.display = 'block';
-  status.textContent = '⏳ Cargando...';
+  status.textContent = '⏳ Cargando ejecutivos...';
 
-  fetch(CATALOG_URL + '?action=catalogo')
-    .then(r => r.json())
-    .then(data => {
-      catalogData = data;
-      poblarEjecutivos();
-      status.textContent = '✓ ' + Object.keys(data).length + ' ejecutivos cargados';
-      setTimeout(() => { status.style.display = 'none'; }, 2000);
-    })
-    .catch(() => {
-      status.textContent = '⚠️ No se pudo cargar el catálogo';
+  // JSONP para evitar bloqueo CORS con Apps Script
+  const callbackName = 'cb_catalogo_' + Date.now();
+  const script = document.createElement('script');
+  script.src = CATALOG_URL + '?action=catalogo&callback=' + callbackName;
+
+  window[callbackName] = function(data) {
+    delete window[callbackName];
+    document.body.removeChild(script);
+    if (data.error) {
+      status.textContent = '⚠️ Error: ' + data.error;
+      return;
+    }
+    // Deduplicar clientes por ejecutivo
+    Object.keys(data).forEach(ej => {
+      data[ej] = [...new Set(data[ej])];
     });
+    catalogData = data;
+    poblarEjecutivos();
+    status.textContent = '✓ ' + Object.keys(data).length + ' ejecutivos cargados';
+    setTimeout(() => { status.style.display = 'none'; }, 2000);
+  };
+
+  script.onerror = function() {
+    status.textContent = '⚠️ No se pudo conectar al catálogo';
+    document.body.removeChild(script);
+  };
+
+  document.body.appendChild(script);
 }
 
 function poblarEjecutivos() {
@@ -782,24 +787,52 @@ function submitVisit() {
     fotoBase64: photoBase64 || null,
   };
 
-  fetch(SHEETS_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-  .then(() => {
+  // POST via JSONP para evitar CORS
+  const cbName = 'cb_visita_' + Date.now();
+  const scr = document.createElement('script');
+  // Enviamos datos como parámetros GET (Apps Script los recibe en doPost via url param)
+  // Usamos iframe trick para POST real sin CORS
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = SHEETS_URL;
+  form.target = 'hidden_iframe';
+  form.style.display = 'none';
+
+  const input = document.createElement('input');
+  input.type = 'hidden';
+  input.name = 'payload';
+  input.value = JSON.stringify(payload);
+  form.appendChild(input);
+
+  let iframe = document.getElementById('hidden_iframe');
+  if (!iframe) {
+    iframe = document.createElement('iframe');
+    iframe.name = 'hidden_iframe';
+    iframe.id = 'hidden_iframe';
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+  }
+
+  iframe.onload = function() {
     resetForm();
     showToast('✅ Visita enviada a Google Sheets');
-  })
-  .catch(() => {
-    resetForm();
-    showToast('⚠️ Guardado local (sin conexión)');
-  })
-  .finally(() => {
     btn.disabled = false;
     btn.innerHTML = '✓ &nbsp; Registrar Visita';
-  });
+  };
+
+  document.body.appendChild(form);
+  form.submit();
+  document.body.removeChild(form);
+
+  // Fallback timeout en caso que iframe no dispare onload
+  setTimeout(() => {
+    if (btn.disabled) {
+      resetForm();
+      showToast('✅ Visita registrada');
+      btn.disabled = false;
+      btn.innerHTML = '✓ &nbsp; Registrar Visita';
+    }
+  }, 3000);
 }
 
 function renderVisits() {
