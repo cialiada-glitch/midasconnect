@@ -466,7 +466,11 @@ function submitVisit() {
   const cliente   = document.getElementById("f-cliente").value.trim();
   const resultado = document.getElementById("f-resultado").value;
 
-  if (!ejecutivo || !cliente || !resultado) { showToast("Completa todos los campos", true); return; }
+  // Diagnóstico temporal con alert nativo
+  const diag = "EJ:" + (ejecutivo||"VACÍO") + " CL:" + (cliente||"VACÍO") + " RES:" + (resultado||"VACÍO") + " GPS:" + (gpsData?"SI":"NO") + " FOTO:" + (photoBase64?"SI":"NO");
+  alert(diag);
+
+  if (!ejecutivo || !cliente || !resultado) { showToast("Completa todos los campos — " + diag, true); return; }
   if (!gpsData) { showToast("⚠️ GPS obligatorio para registrar la visita", true); return; }
   if (!photoBase64) { showToast("⚠️ La foto es obligatoria", true); return; }
 
